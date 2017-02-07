@@ -1,0 +1,158 @@
+#! /bin/bash
+USAGE="Usage: rep [pattern replacement file_pattern]"
+# Version 1.00
+
+# If arguments are specified:
+
+# rep will globally replace a pattern with another string for
+# the files specified on the command line.
+# For example:
+
+#    rep sorce source myFile1.txt
+#    rep sorce source myFile1.txt myFile2.txt myFile3.txt
+#    rep sorce source myFile*
+#    rep sorce source ../../*/files/myFile*
+
+# will change every occurance of "sorce" to "source" in every
+# file specified.
+#
+#    rep "'fred' 'bert'" "'fred' 'ernie'" myFile*
+#
+#  This replaces: 'fred' 'bert'
+#  with:          'fred' 'ernie'
+
+# If no arguments are specified:
+
+# rep enters interactive mode and will prompt the user
+# to enter a filename path. Here there is the advantage that
+# wild cards may be used, so the script can work on several
+# directories, or files with a common suffix, rather than a
+# common prefix. rep then presents the user with options to
+# view the lines within the files which will be affected. It is 
+# then possible to abort the pattern replacement operation 
+# should an unforseen undesireable operation take place.
+
+# rep is _case_sensitive_!
+#
+# WARNING: rep will overwrite the original files!
+#
+#
+
+
+temp_file_name=/tmp/rep_$RANDOM      #Find a place to store temporary files
+
+sedsepr="^"     # Character to use instead of / for separating sed strings
+gflag="g"       # Specify g using flag to avoid problems with terminating command
+
+if(($# > 2))                         #if user did specify an argument
+then
+
+    pattern=$1
+    replacement=$2
+    interact=0
+    proceed="n"
+    shift 2         # Use shift command to shift the positional parameters
+                    # (the command line arguments) two places to the left
+                    # so that the first file is now $1.
+
+    while(($# > 0))
+    do
+
+        if [[ -f ${1} ]]
+        then
+            printf "rep: ${1}\n"
+            sed "s$sedsepr$pattern$sedsepr$replacement$sedsepr$gflag" ${1} > $temp_file_name.file
+            # replace the patterns, output to a temporary file
+
+            mv -f $temp_file_name.file ${1}
+            # overwrite the original file with the new modified file.
+            shift 1
+        else
+            printf "rep ERROR: File ${1} Not Found. - Processing will Continue...\n"
+            shift 1
+        fi
+    done
+
+elif(($# == 0))     # No arguments, go interactive.
+then
+    printf "\n"
+    printf "\n"
+    printf "        _/ __/  ____/ _/____/\n"
+    printf "       _/_/ _/_/   _/__/   _/    rep Version 1.00\n"
+    printf "      __/    _/   _/_/    _/\n"
+    printf "     _/     _/   _/_/    _/      Multi-file Global\n"
+    printf "    _/     ______/_/    _/      Replacement Utility\n"
+    printf "   _/     _/     _/    _/\n"
+    printf "  _/     _/     _/    _/      Steve Hall February 2017\n"
+    printf " _/     _/   _/__/   _/\n"
+    printf "_/      ____/ _/____/          Interactive Operation\n"
+    printf "             _/\n"
+    printf "            _/\n"
+    printf "           _/\n"
+    printf "\n"
+    printf "rep will alter files which have a specified pattern to\n"
+    printf "their name. You may enter a pathname and you may use\n"
+    printf "wildcards (eg. *).\n"
+    printf "\n"
+    read pathname
+    printf "\n"
+    printf "Enter the pattern you wish to search for in the files\n"
+    printf "(use \" to enclose strings which contain white space).\n"
+    printf "\n"
+    read pattern
+    printf "\n"
+    printf "Enter the string you wish to replace the pattern with:\n"
+    printf "\n"
+    read replacement
+    printf "\n"
+    interact=1
+
+else
+    # Not enough arguments passed, printf error message and stop.
+    printf "rep ERROR: You only specified $# arguments.\n"
+    printf $USAGE
+    proceed="n"
+    interact=0
+fi
+
+
+if ((interact == 1))
+then
+    ls $pathname > $temp_file_name.list   # List files with pathname
+
+    printf "Do you wish to see the occurances of the pattern you\n"
+    printf "specified within these files? (y/n)\n"
+    read check
+
+    if [[ $check == "y" ]]
+    then
+        while read zfiles
+        do
+            printf "$zfiles\n"
+            printf "\n"
+            grep -e $pattern $zfiles
+            printf "#################################################\n"
+        done < $temp_file_name.list
+    fi
+
+    printf "\nDo you wish to proceed with the operation? (y/n)\n"
+    read proceed
+
+    if [[ $proceed == "y" ]]
+    then
+        while read zfiles
+        do
+            printf "rep: $zfiles\n"
+
+            sed "s$sedsepr$pattern$sedsepr$replacement$sedsepr$gflag" $zfiles > $temp_file_name.file
+            # replace the patterns, output to a temporary file
+
+            mv -f $temp_file_name.file $zfiles
+            # overwrite the original file with the new modified file.
+
+        done < $temp_file_name.list
+    fi
+
+    rm $temp_file_name.*
+    printf "rep - Temporary files removed.\n"
+fi
